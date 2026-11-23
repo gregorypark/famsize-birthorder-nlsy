@@ -3,18 +3,9 @@ title: "initial"
 output: github_document
 ---
 
-```{r}
+```{r, message=F}
 library(tidyverse); library(readr)
 
-readLines("~/PSID/MX23REL/MX23REL.txt", n = 5)
-
-df <- read_table("~/PSID/MX23REL/MX23REL.txt", col_names = FALSE)
-
-lines <- readLines("~/PSID/MX23REL/MX23REL.txt", n = 2000)
-lines[725:730]                       # around row 727
-table(lengths(strsplit(trimws(lines), "\\s+")))   # token counts per line
-table(nchar(lines))                  # line lengths
-
-# i need to go digging in the codebook
+df <- read.csv("~/Documents/Past work/Junior S1/birthorder_wages/birthorder_wages.csv")
 ```
 
