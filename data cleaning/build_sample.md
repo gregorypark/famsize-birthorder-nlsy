@@ -1,9 +1,6 @@
 build_sample
 ================
 
-Builds the variables in Section 2 of the paper and the estimation
-samples. Run `initial.Rmd` first.
-
 ``` r
 library(tidyverse)
 
@@ -44,8 +41,8 @@ df <- df |>
 ## Family size and birth order
 
 From the 1979 sibling questions. Only children are coded birth order 1
-and picked up by `only_child`. A few people report more older siblings
-than total siblings; they count as missing family info.
+and picked up by `only_child`. Some observations report more older
+siblings than total siblings; set as `NA`.
 
 ``` r
 df <- df |>
@@ -62,7 +59,7 @@ df <- df |>
 
 A family has twins if any member reports a twin/triplet (1993 roster or
 1994 question), or two respondents in the family share a birth month and
-year. Drop the whole family.
+year -\> drop the whole family.
 
 ``` r
 df <- df |>
@@ -75,8 +72,8 @@ df <- df |>
 ## Wages
 
 Hourly pay at job \#1, converted to 2016 dollars with the CPI-U (annual
-average). Keep survey years where R was 30-40 and the real wage is
-between 1 and 250, then average the log wage.
+average). Keep survey years where respondent was 30-40 and the real wage
+is between 1 and 250, then average the log wage.
 
 ``` r
 cpi <- tibble(

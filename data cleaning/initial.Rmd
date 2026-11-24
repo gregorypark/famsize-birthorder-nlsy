@@ -9,7 +9,7 @@ library(tidyverse)
 df <- read_csv("../birthorder_wages/birthorder_wages.csv", show_col_types = F)
 ```
 
-Rename variables (labels mostly from codebook .sps file).
+Rename variables, labels mostly from codebook .sps file.
 
 - `hh_yth*`: other NLSY respondents in R's 1979 household
 - `sib*`: 1993 sibling roster (`_older`: 1 = older, 2 = younger, 3 = twin; `_agegap` in years)
@@ -220,7 +220,7 @@ df <- df |> rename(
 )
 ```
 
-NLSY missing codes: -1 refused, -2 don't know, -3 invalid skip, -4 valid skip, -5 non-interview. No real value in this extract is negative, so set all of them to `NA`. Wages are stored in cents.
+NLSY missing codes: -1 refused, -2 don't know, -3 invalid skip, -4 valid skip, -5 non-interview. No real value in this set of variables should be negative, so set all negatives to `NA`. Wages are stored in cents.
 
 ```{r}
 df <- df |>

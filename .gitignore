@@ -5,7 +5,5 @@
 .positai
 .DS_Store
 birthorder_wages/
-paper/*
-!paper/*.pdf
-!paper/*.tex
+paper/
 cited works/
