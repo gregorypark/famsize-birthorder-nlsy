@@ -8,3 +8,4 @@ birthorder_wages/
 paper/*
 !paper/*.pdf
 !paper/*.tex
+cited works/
