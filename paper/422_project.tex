@@ -1,0 +1,218 @@
+\documentclass[12pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb, amsfonts, booktabs, graphicx}
+\usepackage[round]{natbib}
+\usepackage{parskip}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[colorlinks=true, linkcolor=BrickRed, citecolor=MidnightBlue, urlcolor=NavyBlue]{hyperref}
+
+\title{Born First, Paid More? Birth Order, Family Size, and Adult Wages in the NLSY79}
+\author{Greg Park}
+\date{November 66, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+% TODO: write once the project is further along
+\end{abstract}
+
+\section{Introduction}
+Theories assert that larger families have to split resources among more children, so each child receives less--the quantity-quality trade-off \citep{becker76}. The discussion of family size is closely linked to issues in development policy as well \citep{angrist}. Birth order is a closely related subject, with potential reasons going both ways. Older children may receive more parental scrutiny, energy, and gain non-cognitive skills of mentoring their younger siblings. However, younger children may benefit from their parents being more experienced and potential labor-market peer effects from older siblings, passing down opportunities. Since these two are correlated (large family means it's more likely to be a middle child) and they both have relationships with wage, omitting one or the other present OVB issues \citep{black17}.\footnote{Recall the omitted variable bias formula: if the true model is $y = \beta_0 + \beta_1 x + \beta_2 z + u$ and $z$ is omitted, then $E[\tilde{\beta}_1] = \beta_1 + \beta_2 \delta_1$, where $\delta_1 = \operatorname{Cov}(x,z)/\operatorname{Var}(x)$.}
+
+\citet{kess} is an early study using the NLSY79 with data from 1979, 1983, and 1987 does not find significance of birth order and family size on wages. Interestingly, Kessler found 2-child families obtained .2 to 1 extra years of education on average than individuals from 4+ families. He finds significance in women's probability of employment, however. 
+
+With Norwegian data, \citet{black} study educational attainment, earnings, and full-time employment status. Their observed negative association between family size and education was explained by birth order effects, through regressions with controls and further specifications including family fixed effects. 
+
+\citet{booth} use British data with a parsimonious specification of birth order that removes all effect of family size somehow. They find negative birth order effect on education and separate negative family-szie effects as well in Britain.
+
+In a review of Black's own studies on birth order, later born children have lower IQs on average, and lower non-cognitive skills as well \citep{black17}. Her aggregation of recent evidence suggests that the negative correlation between family size and earnings is in large part accounted for by birth order, where later-born children develop lower levels of skill, earning less, and bringing down average earnings of a family.
+
+CNLSY, the children of the NLSY79 cohort. \citet{pav} also uses family fixed-effects to estimate the birth order effect Finding negative relationships between birth order and cognitive measures. Also found firstborns do better on cognitive, wages, education, and employment within these data as well. (this is only part of his paper though)
+
+Another study which uses the NLSY79 and family fixed effects, to estimate returns to education and find these returns are greater for older boys, and higher for women than men \citep{bronars}. Sheds some light into the mechanisms behind apparent differences in wage.
+
+With Israeli data, \citet{angrist} using natural experiments find little causal evidence of a quantity-quality trade-off, again pointing to family-sze differences in quality may reflect endogenous differences. 
+
+I'm interested in revisitng the NLSY79 to study the effects of birth order on adult wage holding family size constant (through various methods) and how much of the family size gap is accounted for by birth order. First, by expanding the wage data from \citet{kess} to be updated. I then want to see whether the Norwegian findings from \citet{black} replicates in US cohorts. First by testing whether family-size effects diminish with birth-order controls, and then using the \citet{booth} index to nullify collinearity. I'll then add cognitive skill (standardized tests) and education to see how much of the birth-order gap is from skills \citep{black17, pav}. Last, I look at within-family differences with family FE, which identify birth-order effects controlling for all shared family characteristics. 
+
+\section{Data}\label{sec:data}
+Going to be separating everything by sex. Descriptive stats on demographics and stuff here. Need to make sure a bunch of women don't disappear when i construct this wage measure. 
+
+\begin{itemize}
+    \item \textbf{Dependent Variable}
+    \begin{itemize}
+        \item $\ln(\text{wage}_{i})$: mean of log real hourly wage over all survey years in which respondent $i$ was aged 30--40 (could also choose 35-45) and reported a positive wage, requiring at least three valid wage years.\footnote{Rather than use every person-year, a single calendar year, or each respondent's most recent wage, I collapse each wage history into one average. I choose this measure so that siblings are compared at the same career stage, mid-career wages are the bes measure, and averaging reduces noise. and ngl i should do robustness check on just doing 1 valid wage year}
+    \end{itemize}
+
+    \item \textbf{Main Explanatory Variables}
+    \begin{itemize}
+        \item \textbf{Birth Order Indicators}: Dummy variables $\mathbb{I}(\text{BirthOrder}_i = k)$ for 2nd, 3rd, 4th, and 5th+ born children, with 1st born as the omitted reference group \citep{black}. We need a reference group to avoid perfect collinearity with the intercept! Ima keep only children separate from first borns and look at them separately
+        \item \textbf{Family Size}: $\text{FamSize}_i$, total number of children born to the mother (siblings + 1, including the respondent). I am excluding families with twins from the sample, in line with \cite{pav}.\footnote{although twins are used in cool was mainly as instruments in \cite{black} and \cite{angrist}.}
+        \item \textbf{Only Child}: $\text{OnlyChild}_i$, equal to 1 if the respondent has no siblings, so that only children are not pooled with firstborns in the reference group \citep{booth}.
+    \end{itemize}
+
+    \item \textbf{Human Capital and Cognitive Ability}
+    \begin{itemize}
+        \item \textbf{Cognitive Ability ($\text{AFQT}_i$)}: Residual from regressing raw 1980 Armed Forces Qualification Test scores on age at test date (standardized to mean 0, SD 1). Later-borns score lower on cognitive measures \citep{pav, black17}, so AFQT enters as a mediator.\footnote{a mediator is \dots}
+        \item \textbf{Educational Attainment ($\text{Educ}_i$)}: Highest grade completed (measured at age 25+). Like AFQT, schooling is a likely channel for birth-order effects \citep{black, booth}, so it is also treated as a mediator.
+    \end{itemize}
+
+    \item \textbf{Individual Demographic Control Vector ($X_{i}$)}
+    \begin{itemize}
+        \item i also need to do something about sample weights because the NLSY dropped some groups after 1990
+        \item \textbf{Gender}: $\text{Female}_i$ dummy (equal to 1 if female, 0 if male). only needed in \eqref{eq:spec4a} because I split by gender for the rest
+        \item \textbf{Race/Ethnicity}: Categorical indicators for Black, Hispanic, and Non-Black/Non-Hispanic.
+    \end{itemize}
+
+    \item \textbf{Birth-Year Dummies ($\phi_{c(i)}$)}: Indicators for each birth year, 1957--1964, with the earliest cohort omitted. Because wages are averaged over the same ages for everyone, age itself is nearly constant across respondents, but different cohorts reach ages 30--40 in different calendar years and labor markets. These dummies absorb those cohort differences and enter every specification.
+
+    \item \textbf{Family Background Controls (Age 14)\footnote{these are all from \citet{kess}}}
+    \begin{itemize}
+        \item \textbf{Parental Education}: Years of schooling completed by mother ($\text{Educ}_{\text{mother}}$) and father ($\text{Educ}_{\text{father}}$).
+        \item \textbf{Parents' Occupation}: Dummy for mother or father in a professional/managerial occupation when respondent was age 14.
+        \item \textbf{Home Learning Environment}: Indicator for presence of newspapers, magazines, and library cards in household at age 14. This is parental investment?\footnote{Ok because this is at age 14, this actually differs by sibling so this is also a mediator.}
+    \end{itemize}
+\end{itemize}
+
+\section{Regressions}
+\subsection*{Specification 1: Baseline Model}
+The raw correlations between family size, birth order, and log hourly wages, revisiting \citet{kess}, whose wage data end in 1987 when the cohort was still early in their careers. I run two baseline regressions, separately by sex, each controlling only for birth-year dummies $\phi_{c(i)}$, so that the change in $\omega$ between Equations~\eqref{eq:spec1a} and~\eqref{eq:spec2} reflects birth order rather than cohort:\footnote{I need to run a robustness check where I breka up family size into dummies, not linearly. in line with literature and addresses what we did in class}
+\begin{align}
+\ln(\text{wage}_{i}) &= \alpha + \omega_0 \cdot \text{FamilySize}_i + \psi \cdot \text{OnlyChild}_i + \phi_{c(i)} + \varepsilon_{i} \label{eq:spec1a} \\
+\ln(\text{wage}_{i}) &= \alpha + \sum_{k=2}^{K} \beta^0_k \cdot \mathbb{I}(\text{BirthOrder}_i = k) + \psi \cdot \text{OnlyChild}_i + \phi_{c(i)} + \varepsilon_{i} \label{eq:spec1b}
+\end{align}
+
+This may violate gauss-markov via
+\begin{itemize}
+    \item conditional exogeneity $E[\epsilon|x]\not=0$ because of omitted family-level variables (parents who choose larger families differ systematically) \citep{black, angrist}
+    \item Selection into employment affects the wage sample, so perhaps not a random sample, especially for women 
+    \item Heteroskedasticity idk but I will be using clustered standard errors by household for all my regressions because their errors will be correlated
+\end{itemize}
+
+\subsection*{Specification 2: Controlling for Family Size}
+\begin{equation}
+\ln(\text{wage}_{i}) = \alpha + \sum_{k=2}^{K} \beta_k \cdot \mathbb{I}(\text{BirthOrder}_i = k) + \omega \cdot \text{FamilySize}_i + \psi \cdot \text{OnlyChild}_i + \phi_{c(i)} + \varepsilon_{i} \label{eq:spec2}
+\end{equation}
+where $\mathbb{I}(\text{BirthOrder}_i = k)$ is an indicator for birth order position $k$ (with firstborns as the reference group). A constant on year of birth is important to soak up differences in labor markets across years. 
+
+The key test is whether $\omega$ shrinks relative to $\omega_0$ in Equation~\eqref{eq:spec1a} once birth order is held fixed, as \citet{black} find in Norway. 
+
+\subsection*{Specification 3: Full Demographic, Human Capital, and Background Controls}
+I estimate this in two steps. Specification 3a adds the demographic and family background controls:
+\begin{equation}
+\begin{split}
+\ln(\text{wage}_{i}) = \alpha &+ \sum_{k=2}^{K} \beta_k \cdot \mathbb{I}(\text{BirthOrder}_i = k) + \omega \cdot \text{FamilySize}_i + \psi \cdot \text{OnlyChild}_i \\
+&+ \phi_{c(i)} + X_{i}'\delta + \varepsilon_{i}
+\end{split}
+\label{eq:spec3a}
+\end{equation}
+Specification 3b then adds the two mediators, cognitive ability and schooling:
+\begin{equation}
+\begin{split}
+\ln(\text{wage}_{i}) = \alpha &+ \sum_{k=2}^{K} \beta_k \cdot \mathbb{I}(\text{BirthOrder}_i = k) + \omega \cdot \text{FamilySize}_i + \psi \cdot \text{OnlyChild}_i \\
+&+ \phi_{c(i)} + X_{i}'\delta + \theta \cdot \text{AFQT}_i + \lambda \cdot \text{Educ}_i + \varepsilon_{i}
+\end{split}
+\label{eq:spec3b}
+\end{equation}
+where $\text{AFQT}_i$ is the age-adjusted residual of cognitive ability, $\text{Educ}_i$ is highest grade completed, and $X_{i}$ is the vector of demographic and family background controls defined in Section~\ref{sec:data}.\footnote{I would have included age and $\text{age}^2$ to fit with the Mincer earnings model \citep{mincer74} but since we're measuring wage at the same age range for everyone, this is mostly not necessary} 
+
+Because AFQT and schooling are also affected by birth order \citep{black17}, I add demographic and family background controls first and the mediators second. The change in $\beta_k$ when the mediators enter is the share of the birth-order wage gap that runs through skills.
+
+\subsection*{Specification 4: Family Fixed Effects Model}
+Report how many families and siblings are in the sample, and how many families have mixed-sex siblings. 
+
+The NLSY79 sampled only individuals aged 14 to 22 at the end of 1978. Siblings born outside this range count toward family size and birth order but were never interviewed, so they have no wage data. The fixed-effects sample therefore compares only sibling respondents, who by construction were born within about eight years of each other.
+
+Splitting the sibling sample by sex would leave only same-sex sibling pairs to compare, so I pool men and women here and interact the birth-order indicators with $\text{Female}_{ij}$: $\beta_k$ is the birth-order effect for men and $\beta_k + \kappa_k$ is the effect for women. $\rho$ is the female main effect, identified from mixed-sex sibling pairs. Family-level controls such as race and parental education are constant within a household and are absorbed by $\mu_j$, so they are omitted.\footnote{don't need to add onlychild here since they do not have siblings so they won't be in this sample}
+
+\begin{equation}
+\begin{split}
+\ln(\text{wage}_{ij}) = &\sum_{k=2}^{K} \beta_k \cdot \mathbb{I}(\text{BirthOrder}_{ij} = k) + \sum_{k=2}^{K} \kappa_k \cdot \mathbb{I}(\text{BirthOrder}_{ij} = k) \cdot \text{Female}_{ij} \\
+&+ \phi_{c(ij)} + \rho \cdot \text{Female}_{ij} + \mu_j + v_{ij}
+\end{split}
+\label{eq:spec4a}
+\end{equation}
+Compares siblings within the same household $j$, eliminating all time-invariant unobserved family heterogeneity $\mu_j$ (such as parental wealth, genetics, and parenting culture) \citep{black, bronars, pav}\footnote{I was initially concerned about collinearity, since birth year and birth order seem highly correlated within families. I lose a lot of variation, so standard errors will be larger.}. Here I run it again with the mediators.\footnote{Controlling for cog skill and educ is not necessarily a good thing. This version is biased--bad control according to Agrinst and Pischke}
+\begin{equation}
+\begin{split}
+\ln(\text{wage}_{ij}) = &\sum_{k=2}^{K} \beta_k \cdot \mathbb{I}(\text{BirthOrder}_{ij} = k) + \sum_{k=2}^{K} \kappa_k \cdot \mathbb{I}(\text{BirthOrder}_{ij} = k) \cdot \text{Female}_{ij} \\
+&+ \phi_{c(ij)} + \theta \cdot \text{AFQT}_{ij} + \lambda \cdot \text{Educ}_{ij} + \rho \cdot \text{Female}_{ij} + \mu_j + v_{ij}
+\end{split}
+\label{eq:spec4b}
+\end{equation}
+Because completed family size is constant within a family, it is absorbed by $\mu_j$. It is estimated on households with two or more sibling respondents, with standard errors clustered by household.
+
+\subsection*{Extension: Purged Birth Order Index Model}
+Alternative specification, and robustness check on Specification 2, using Booth \& Kee's normalized Birth Order Index $B_i$, which purges the mechanical collinearity between birth order and completed family size \citep{booth}:
+\begin{equation}
+\ln(\text{wage}_{i}) = \alpha + \beta_{BK} \cdot B_i + \gamma \cdot \text{FamilySize}_i + \psi \cdot \text{OnlyChild}_i + \phi_{c(i)} + X_{i}'\delta + \varepsilon_{i} \label{eq:index}
+\end{equation}
+where the Birth Order Index is defined as:
+\begin{equation}
+B_i = \frac{\text{BirthOrder}_i}{\left( \frac{\text{FamilySize}_i + 1}{2} \right)} \label{eq:bindex}
+\end{equation}
+this divides birth order by the average birth order for that family size, so the index averages 1 for every family size.
+
+\section{Results}
+% TODO
+
+\section{Discussion}
+
+\section{Conclusion}
+% TODO
+
+\section{use of ai}
+todo
+
+\newpage
+\begin{thebibliography}{1}
+\bibitem[Angrist et al.(2010)]{angrist}
+Angrist, J., Lavy, V., and Schlosser, A. (2010).
+Multiple Experiments for the Causal Link between the Quantity and Quality of Children.
+\textit{Journal of Labor Economics}, 28(4), 773--824.
+
+\bibitem[Becker and Tomes(1976)]{becker76}
+Becker, G. S. and Tomes, N. (1976).
+Child Endowments and the Quantity and Quality of Children.
+\textit{Journal of Political Economy}, 84(4), S143--S162.
+
+\bibitem[Black(2017)]{black17}
+Black, S. E. (2017).
+New evidence on the impacts of birth order.
+\textit{NBER Reporter}, (4), https://www.nber.org/reporter/2017number4/new-evidence-impacts-birth-order.
+
+\bibitem[Black et al.(2005)]{black}
+Black, S., Devereux, P., and Salvanes, K. (2005).
+The More the Merrier? The Effect of Family Size and Birth Order on Children's Education.
+\textit{The Quarterly Journal of Economics}, 120(2), 669--700.
+
+\bibitem[Booth and Kee(2009)]{booth}
+Booth, A. L. and Kee, H. J. (2009).
+Birth order matters: the effect of family size and birth order on educational attainment.
+\textit{Journal of Population Economics}, 22(2), 367--397.
+
+\bibitem[Bronars and Oettinger(2006)]{bronars}
+Bronars, S. G. and Oettinger, G. S. (2006).
+Estimates of the return to schooling and ability: evidence from sibling data
+\textit{Labour Economics}, 13(1), 19--34.
+
+\bibitem[Kessler(1991)]{kess}
+Kessler, D. (1991).
+Birth Order, Family Size, and Achievement: Family Structure and Wage Determination.
+\textit{Journal of Labor Economics}, 9(4), 413--426.
+
+\bibitem[Mincer(1974)]{mincer74}
+Mincer, J. (1974).
+\textit{Schooling, Experience, and Earnings}.
+New York: NBER and Columbia University Press.
+
+\bibitem[Pavan(2016)]{pav}
+Pavan, R. (2016).
+On the Production of Skills and the Birth-Order Effect.
+\textit{The Journal of Human Resources}, 51(3), 699--726.
+
+
+\end{thebibliography}
+
+\end{document}
