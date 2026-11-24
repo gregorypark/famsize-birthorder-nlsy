@@ -9,7 +9,7 @@ library(tidyverse)
 df <- read_csv("../birthorder_wages/birthorder_wages.csv", show_col_types = F)
 ```
 
-Rename variables (labels from codebook `birthorder_wages/birthorder_wages.sps`).
+Rename variables (labels mostly from codebook .sps file).
 
 - `hh_yth*`: other NLSY respondents in R's 1979 household
 - `sib*`: 1993 sibling roster (`_older`: 1 = older, 2 = younger, 3 = twin; `_agegap` in years)
