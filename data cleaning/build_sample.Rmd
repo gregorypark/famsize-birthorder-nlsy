@@ -171,6 +171,9 @@ analysis |>
             bo_mismatch = sum(bo_mismatch), size_mismatch = sum(size_mismatch))
 ```
 
+Save the analysis sample, plus the full pre-restriction data so summary stats can track who each restriction drops.
+
 ```{r}
 write_rds(analysis, "../birthorder_wages/analysis.rds")
+write_rds(df, "../birthorder_wages/sample_full.rds")
 ```

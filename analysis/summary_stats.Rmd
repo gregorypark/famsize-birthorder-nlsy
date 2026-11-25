@@ -1,0 +1,228 @@
+---
+title: "summary_stats"
+output: github_document
+---
+
+```{r, message=F}
+library(tidyverse)
+
+analysis <- read_rds("../birthorder_wages/analysis.rds") |>
+  mutate(sex = if_else(female == 1, "women", "men"))
+full <- read_rds("../birthorder_wages/sample_full.rds") |>
+  mutate(sex = if_else(female == 1, "women", "men"))
+```
+
+Means, SDs, and shares use the custom weights. Counts are unweighted.
+
+## Who each restriction drops
+
+Same restrictions as `build_sample`, applied in order, split by sex and birth order. Respondents without usable family info have no valid birth order, so they show up as `missing` and all leave at `family_info`. Weights only exist for the final sample, so these are raw counts.
+
+```{r}
+flow <- full |>
+  mutate(bo = fct_na_value_to_level(if_else(has_fam, bo, NA), "missing"),
+         start = TRUE,
+         family_info = has_fam,
+         no_twins = family_info & !twin_fam,
+         any_wage = no_twins & n_wage_years >= 1,
+         three_wages = no_twins & n_wage_years >= 3) |>
+  pivot_longer(start:three_wages, names_to = "step", values_to = "kept") |>
+  mutate(step = fct_inorder(step)) |>
+  summarise(n = sum(kept), .by = c(sex, bo, step)) |>
+  arrange(sex, bo, step)
+```
+
+Remaining at each step:
+
+```{r}
+flow |>
+  pivot_wider(names_from = step, values_from = n) |>
+  knitr::kable()
+```
+
+Dropped at each step:
+
+```{r}
+flow |>
+  mutate(dropped = lag(n) - n, .by = c(sex, bo)) |>
+  filter(step != "start") |>
+  select(-n) |>
+  pivot_wider(names_from = step, values_from = dropped) |>
+  knitr::kable()
+```
+
+Share of those with family info who make it to the analysis sample, to check whether attrition differs by birth order:
+
+```{r}
+flow |>
+  filter(bo != "missing", step %in% c("family_info", "three_wages")) |>
+  pivot_wider(names_from = step, values_from = n) |>
+  mutate(kept = three_wages / family_info) |>
+  select(sex, bo, kept) |>
+  pivot_wider(names_from = sex, values_from = kept) |>
+  knitr::kable(digits = 3)
+```
+
+## Descriptive statistics
+
+Analysis sample by sex: weighted mean and SD, unweighted N. Wage is the geometric mean real hourly wage (2016 dollars), i.e. `exp(ln_wage)`.
+
+```{r}
+analysis |>
+  mutate(wage = exp(ln_wage),
+         black = as.integer(race == "black"),
+         hispanic = as.integer(race == "hispanic")) |>
+  select(sex, wt, ln_wage, wage, n_wage_years, fam_size, birth_order, only_child,
+         afqt, educ, black, hispanic, birth_year,
+         mom_educ, dad_educ, parent_profmgr, home_learning) |>
+  pivot_longer(-c(sex, wt)) |>
+  filter(!is.na(value)) |>
+  summarise(mean = weighted.mean(value, wt),
+            sd = sqrt(sum(wt * (value - mean)^2) / sum(wt)),
+            n = n(),
+            .by = c(name, sex)) |>
+  pivot_wider(names_from = sex, values_from = c(mean, sd, n)) |>
+  knitr::kable(digits = 2)
+```
+
+## Birth order and family size
+
+Birth order distribution by sex: unweighted N, weighted share.
+
+```{r}
+analysis |>
+  summarise(n = n(), w = sum(wt), .by = c(sex, bo)) |>
+  mutate(share = w / sum(w), .by = sex) |>
+  select(-w) |>
+  arrange(sex, bo) |>
+  pivot_wider(names_from = sex, values_from = c(n, share)) |>
+  knitr::kable(digits = 3)
+```
+
+Family size by birth order (pooled, raw counts). Birth order is only separately identified from family size because each family size has several birth orders in it, so this shows how thin the cells get.
+
+```{r}
+analysis |>
+  count(fam_size_cat, bo) |>
+  pivot_wider(names_from = bo, values_from = n, values_fill = 0) |>
+  knitr::kable()
+```
+
+## Means by birth order
+
+Weighted means by birth order and sex, before any controls. Later-borns come from bigger families, so this mixes birth order and family size.
+
+```{r}
+analysis |>
+  summarise(n = n(),
+            ln_wage = weighted.mean(ln_wage, wt),
+            afqt = weighted.mean(afqt, wt, na.rm = T),
+            educ = weighted.mean(educ, wt),
+            fam_size = weighted.mean(fam_size, wt),
+            .by = c(sex, bo)) |>
+  arrange(sex, bo) |>
+  knitr::kable(digits = 2)
+```
+
+## Missing controls
+
+Controls missing in the analysis sample, and how many have every control (the sample for the full-controls specification).
+
+```{r}
+analysis |>
+  summarise(n = n(),
+            complete = sum(!is.na(afqt) & !is.na(mom_educ) & !is.na(dad_educ) & !is.na(home_learning)),
+            afqt = sum(is.na(afqt)),
+            mom_educ = sum(is.na(mom_educ)),
+            dad_educ = sum(is.na(dad_educ)),
+            home_learning = sum(is.na(home_learning)),
+            .by = sex) |>
+  knitr::kable()
+```
+
+## Birth cohorts
+
+```{r}
+analysis |>
+  count(birth_year, sex) |>
+  pivot_wider(names_from = sex, values_from = n) |>
+  knitr::kable()
+```
+
+# Specification 4: Sibling FE sample
+
+Families with at least two siblings in the analysis sample. Spec 4 is unweighted, so everything here is unweighted.
+
+```{r}
+fe <- filter(analysis, fe)
+```
+
+Families, siblings, and families with mixed-sex siblings (these identify the female main effect).
+
+```{r}
+fe |>
+  summarise(n = n(), mixed = n_distinct(female) > 1, .by = fam_id) |>
+  summarise(families = n(), siblings = sum(n), mixed_sex = sum(mixed)) |>
+  knitr::kable()
+```
+
+Siblings per family.
+
+```{r}
+fe |>
+  count(fam_id) |>
+  count(n, name = "families") |>
+  rename(siblings = n) |>
+  knitr::kable()
+```
+
+Birth order by sex in the FE sample. Every birth order needs enough siblings of each sex for the birth order × female interactions.
+
+```{r}
+fe |>
+  count(bo, sex) |>
+  pivot_wider(names_from = sex, values_from = n) |>
+  knitr::kable()
+```
+
+Unweighted means for the FE sample next to the full analysis sample. The FE sample should look similar apart from coming from bigger families.
+
+```{r}
+analysis |>
+  mutate(black = as.integer(race == "black"),
+         hispanic = as.integer(race == "hispanic"),
+         sample = if_else(fe, "fe", "non_fe")) |>
+  bind_rows(mutate(analysis, sample = "all",
+                   black = as.integer(race == "black"),
+                   hispanic = as.integer(race == "hispanic"))) |>
+  select(sample, ln_wage, fam_size, birth_order, afqt, educ, female, black, hispanic,
+         birth_year, mom_educ, dad_educ, parent_profmgr, home_learning) |>
+  pivot_longer(-sample) |>
+  summarise(mean = mean(value, na.rm = T), .by = c(name, sample)) |>
+  pivot_wider(names_from = sample, values_from = mean) |>
+  select(name, all, fe, non_fe) |>
+  knitr::kable(digits = 2)
+```
+
+Gap between oldest and youngest sibling respondent's birth year within each family. All siblings were born 1957-1964, so gaps are at most 7 years, and birth year and birth order move closely together within a family.
+
+```{r}
+fe |>
+  summarise(gap = max(birth_year) - min(birth_year), .by = fam_id) |>
+  count(gap, name = "families") |>
+  knitr::kable()
+
+cor(fe$birth_order - ave(fe$birth_order, fe$fam_id),
+    fe$birth_year - ave(fe$birth_year, fe$fam_id))
+```
+
+Families where reported birth order doesn't match the siblings' birth dates, or where siblings report different family sizes.
+
+```{r}
+fe |>
+  arrange(fam_id, birth_year, birth_month) |>
+  summarise(bo_mismatch = any(diff(birth_order) <= 0, na.rm = T),
+            size_mismatch = n_distinct(fam_size) > 1, .by = fam_id) |>
+  summarise(bo_mismatch = sum(bo_mismatch), size_mismatch = sum(size_mismatch)) |>
+  knitr::kable()
+```

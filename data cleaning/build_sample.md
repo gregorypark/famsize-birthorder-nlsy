@@ -203,6 +203,10 @@ analysis |>
     ##      <int>    <int>     <int>       <int>         <int>
     ## 1     1529     3532       831         110           210
 
+Save the analysis sample, plus the full pre-restriction data so summary
+stats can track who each restriction drops.
+
 ``` r
 write_rds(analysis, "../birthorder_wages/analysis.rds")
+write_rds(df, "../birthorder_wages/sample_full.rds")
 ```
