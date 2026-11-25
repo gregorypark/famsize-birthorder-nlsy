@@ -12,12 +12,21 @@ df <- read_rds("../birthorder_wages/nlsy_clean.rds") |>
 
 The military subsample was dropped after 1984 and the supplemental
 poor-white subsample after 1990, so neither has wages at ages 30-40.
-Drop both and use the 1979 base weight (stored with 2 implied decimals).
+Drop both.
+
+Weights are NLS custom weights (nlsinfo.org/weights/nlsy79, “Weight IDs”
+tab) built for exactly the IDs in the final sample
+(`customweights/main_ids.txt`), so they reweight just those respondents
+to the population.Stored with 2 implied decimals.
 
 ``` r
+wts <- read_table("../birthorder_wages/customweights/custom_weights.dat",
+                  col_names = c("id", "wt"), show_col_types = F)
+
 df <- df |>
   filter(!sample_id %in% c(9, 12, 15:20)) |>
-  mutate(wt = weight_1979 / 100)
+  left_join(wts, by = "id") |>
+  mutate(wt = wt / 100)
 ```
 
 ## Family ID
@@ -59,7 +68,7 @@ df <- df |>
 
 A family has twins if any member reports a twin/triplet (1993 roster or
 1994 question), or two respondents in the family share a birth month and
-year -\> drop the whole family.
+year.
 
 ``` r
 df <- df |>
@@ -117,20 +126,9 @@ educ <- df |>
   select(id, birth_year, matches("^educ_\\d{4}$")) |>
   pivot_longer(matches("^educ_"), names_to = "year", names_prefix = "educ_",
                names_transform = as.integer, values_to = "educ") |>
-  filter(between(year - birth_year, 25, 40)) |>
-  summarise(educ = max(educ, na.rm = T), .by = id) |>
-  filter(is.finite(educ))
-```
+  filter(between(year - birth_year, 25, 40), !is.na(educ)) |>
+  summarise(educ = max(educ), .by = id)
 
-    ## Warning: There were 226 warnings in `summarise()`.
-    ## The first warning was:
-    ## ℹ In argument: `educ = max(educ, na.rm = T)`.
-    ## ℹ In group 1: `id = 1`.
-    ## Caused by warning in `max()`:
-    ## ! no non-missing arguments to max; returning -Inf
-    ## ℹ Run `dplyr::last_dplyr_warnings()` to see the 225 remaining warnings.
-
-``` r
 df <- left_join(df, educ, by = "id")
 ```
 
@@ -153,7 +151,7 @@ df <- df |>
 
 Sample sizes by sex at each restriction, to check how many women the
 wage measure loses. We see that how I’ve defined wage does not lose a
-huge mass of women in the sample.
+huge mass of women in the sample compared to men.
 
 ``` r
 df |>
@@ -171,16 +169,14 @@ df |>
     ## 1      1  4926        4770     4636     4160        3727
     ## 2      0  4837        4672     4544     4133        3768
 
-`main` is the cross-section sample (at least 3 wage years);
-`n_wage_years >= 1` gives the robustness sample. `fe` keeps families
-with at least two siblings in `main`.
+The analysis sample needs at least 3 wage years. `fe` marks families
+with at least two siblings in it.
 
 ``` r
 analysis <- df |>
-  filter(has_fam, !twin_fam, n_wage_years >= 1) |>
-  mutate(main = n_wage_years >= 3,
-         fe = main & sum(main) >= 2, .by = fam_id) |>
-  select(id, fam_id, wt, ln_wage, n_wage_years, main, fe,
+  filter(has_fam, !twin_fam, n_wage_years >= 3) |>
+  mutate(fe = n() >= 2, .by = fam_id) |>
+  select(id, fam_id, wt, ln_wage, n_wage_years, fe,
          fam_size, fam_size_cat, birth_order, bo, only_child, bk_index,
          afqt, educ, female, race, birth_year, byear, birth_month,
          mom_educ, dad_educ, parent_profmgr,
