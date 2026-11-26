@@ -1,0 +1,91 @@
+---
+title: "fe_specs"
+output: github_document
+---
+
+```{r, message=F}
+library(tidyverse)
+library(fixest)
+library(modelsummary)
+
+fe <- read_rds("../birthorder_wages/analysis.rds") |>
+  filter(fe)
+```
+
+Spec 4: family fixed effects on families with at least two siblings in the analysis sample. Men and women pooled, birth order interacted with `female`, so `bo = k` is the effect for men and `bo = k x female` is the extra effect for women. Birth-year dummies absorbed alongside family FE. Unweighted, SEs clustered by family. Family size and family background are constant within a family and drop out.
+
+`reg_table` prints coefficients with clustered SEs in parentheses. + p < 0.1, * p < 0.05, ** p < 0.01, *** p < 0.001.
+
+```{r}
+reg_table <- function(models, ...) {
+  modelsummary(models, output = "data.frame", stars = TRUE, fmt = 3,
+               gof_map = c("nobs", "r.squared", "r2.within"),
+               coef_rename = \(x) x |> str_replace("::", " = ") |> str_replace(":female", " x female"), ...) |>
+    mutate(term = if_else(statistic == "std.error", "", term)) |>
+    select(-part, -statistic) |>
+    knitr::kable()
+}
+```
+
+4a and 4b run on the same sample (no missing AFQT) so the change from 4a to 4b is only from the mediators. Dropping missing AFQT leaves some families with one sibling; `feols` drops these singletons since they add no within-family variation.
+
+```{r}
+fe <- drop_na(fe, afqt)
+```
+
+## Spec 4a
+
+```{r}
+s4a <- feols(ln_wage ~ i(bo, ref = "1") + i(bo, female, ref = "1") + female | fam_id + byear,
+             fe, cluster = ~fam_id)
+```
+
+## Spec 4b: with mediators
+
+```{r}
+s4b <- feols(ln_wage ~ i(bo, ref = "1") + i(bo, female, ref = "1") + female + afqt + educ | fam_id + byear,
+             fe, cluster = ~fam_id)
+reg_table(list(`4a` = s4a, `4b` = s4b))
+```
+
+## Effects for women
+
+Birth order effect for women is `bo = k` + `bo = k x female`. SE from the clustered vcov.
+
+```{r}
+women <- function(m) {
+  b <- coef(m)
+  v <- vcov(m)
+  map(c("2", "3", "4", "5+"), \(k) {
+    x <- paste0("bo::", k)
+    y <- paste0(x, ":female")
+    tibble(bo = k, est = b[x] + b[y], se = sqrt(v[x, x] + v[y, y] + 2 * v[x, y]))
+  }) |>
+    bind_rows() |>
+    mutate(p = 2 * pnorm(-abs(est / se)))
+}
+
+bind_rows(`4a` = women(s4a), `4b` = women(s4b), .id = "model") |>
+  knitr::kable(digits = 3)
+```
+
+## Checks
+
+Drop families with inconsistent reports, kept in the main sample as in Black et al. (2005). First only families where reported birth order doesn't match the siblings' birth dates (error in the variable of interest), then also families where siblings report different family sizes (absorbed by the family FE, so it only matters through birth order).
+
+```{r}
+bad <- fe |>
+  arrange(fam_id, birth_year, birth_month) |>
+  summarise(bo_bad = any(diff(birth_order) <= 0),
+            size_bad = n_distinct(fam_size) > 1, .by = fam_id)
+
+bo_bad <- bad$fam_id[bad$bo_bad]
+any_bad <- bad$fam_id[bad$bo_bad | bad$size_bad]
+
+s4a_bo <- feols(ln_wage ~ i(bo, ref = "1") + i(bo, female, ref = "1") + female | fam_id + byear,
+                filter(fe, !fam_id %in% bo_bad), cluster = ~fam_id)
+s4a_clean <- feols(ln_wage ~ i(bo, ref = "1") + i(bo, female, ref = "1") + female | fam_id + byear,
+                   filter(fe, !fam_id %in% any_bad), cluster = ~fam_id)
+reg_table(list(`4a all` = s4a, `4a drop birth order mismatch` = s4a_bo,
+               `4a drop any mismatch` = s4a_clean))
+```

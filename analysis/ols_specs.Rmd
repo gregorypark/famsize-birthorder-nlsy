@@ -1,0 +1,135 @@
+---
+title: "ols_specs"
+output: github_document
+---
+
+```{r, message=F}
+library(tidyverse)
+library(fixest)
+library(modelsummary)
+
+analysis <- read_rds("../birthorder_wages/analysis.rds") |>
+  mutate(sex = if_else(female == 1, "women", "men"))
+```
+
+Specs 1-3 and the Booth-Kee extension. All run separately by sex (`split = ~sex`), weighted with the custom weights, birth-year dummies absorbed, SEs clustered by family. Firstborns are the omitted birth order; only children are firstborns picked up by `only_child`.
+
+Table helpers. `by_sex` names each split model "spec men" / "spec women"; `reg_table` prints coefficients with clustered SEs in parentheses. + p < 0.1, * p < 0.05, ** p < 0.01, *** p < 0.001.
+
+```{r}
+by_sex <- function(...) {
+  imap(list(...), \(m, nm) set_names(as.list(m), paste(nm, c("men", "women")))) |>
+    list_flatten(name_spec = "{inner}")
+}
+
+reg_table <- function(models, ...) {
+  modelsummary(models, output = "data.frame", stars = TRUE, fmt = 3,
+               gof_map = c("nobs", "r.squared"),
+               coef_rename = \(x) str_replace(x, "::", " = "), ...) |>
+    mutate(term = if_else(statistic == "std.error", "", term)) |>
+    select(-part, -statistic) |>
+    knitr::kable()
+}
+```
+
+## Spec 1: Baseline
+
+1a: family size only. 1b: birth order only.
+
+```{r}
+s1a <- feols(ln_wage ~ fam_size + only_child | byear, analysis, split = ~sex, weights = ~wt, cluster = ~fam_id)
+s1b <- feols(ln_wage ~ i(bo, ref = "1") + only_child | byear, analysis, split = ~sex, weights = ~wt, cluster = ~fam_id)
+reg_table(by_sex(`1a` = s1a, `1b` = s1b))
+```
+
+## Spec 2: Birth order and family size
+
+Key test: does the family size coefficient shrink from 1a once birth order is held fixed?
+
+```{r}
+s2 <- feols(ln_wage ~ i(bo, ref = "1") + fam_size + only_child | byear, analysis, split = ~sex, weights = ~wt, cluster = ~fam_id)
+reg_table(by_sex(`1a` = s1a, `2` = s2), coef_omit = "^(?!fam_size)")
+reg_table(by_sex(`2` = s2))
+```
+
+Robustness (paper footnote): family size as dummies instead of linear. Family size 1 is the omitted category, which is the same as `only_child`, so `only_child` drops out.
+
+```{r}
+s2_dum <- feols(ln_wage ~ i(bo, ref = "1") + i(fam_size_cat, ref = "1") | byear, analysis, split = ~sex, weights = ~wt, cluster = ~fam_id)
+reg_table(by_sex(`2 dummies` = s2_dum))
+```
+
+## Spec 3: Controls and mediators
+
+Like Table IV of Black et al. (2005): each set of controls without and then with birth order. 3a adds race and family background, 3b adds birth order. 3c and 3d add AFQT and education, without and with birth order.
+
+Missing controls: dropping anyone missing a control or AFQT loses about 20% of the sample (mostly father's education, which is usually missing when there's no father in the home). That subsample isn't random, and the custom weights are built for the full analysis sample. So instead, missing values are set to 0 and each gets a `_miss` dummy. All four columns then run on the full analysis sample, the same one as Specs 1-2.
+
+```{r}
+m <- analysis |>
+  mutate(across(c(afqt, mom_educ, dad_educ, home_learning), list(miss = ~ as.integer(is.na(.x)))),
+         across(c(afqt, mom_educ, dad_educ, home_learning), ~ replace_na(.x, 0)))
+
+s3a <- feols(ln_wage ~ fam_size + only_child +
+               race + mom_educ + dad_educ + parent_profmgr + home_learning +
+               mom_educ_miss + dad_educ_miss + home_learning_miss | byear,
+             m, split = ~sex, weights = ~wt, cluster = ~fam_id)
+s3b <- feols(ln_wage ~ i(bo, ref = "1") + fam_size + only_child +
+               race + mom_educ + dad_educ + parent_profmgr + home_learning +
+               mom_educ_miss + dad_educ_miss + home_learning_miss | byear,
+             m, split = ~sex, weights = ~wt, cluster = ~fam_id)
+s3c <- feols(ln_wage ~ fam_size + only_child +
+               race + mom_educ + dad_educ + parent_profmgr + home_learning +
+               mom_educ_miss + dad_educ_miss + home_learning_miss +
+               afqt + educ + afqt_miss | byear,
+             m, split = ~sex, weights = ~wt, cluster = ~fam_id)
+s3d <- feols(ln_wage ~ i(bo, ref = "1") + fam_size + only_child +
+               race + mom_educ + dad_educ + parent_profmgr + home_learning +
+               mom_educ_miss + dad_educ_miss + home_learning_miss +
+               afqt + educ + afqt_miss | byear,
+             m, split = ~sex, weights = ~wt, cluster = ~fam_id)
+s3 <- by_sex(`3a` = s3a, `3b` = s3b, `3c` = s3c, `3d` = s3d)
+```
+
+Men:
+
+```{r}
+reg_table(s3[str_ends(names(s3), " men")])
+```
+
+Women:
+
+```{r}
+reg_table(s3[str_ends(names(s3), "women")])
+```
+
+Change in each birth order coefficient when the mediators enter (`b_3d - b_3b`). A share (`1 - b_3d / b_3b`) blows up when `b_3b` is near zero, so report the difference.
+
+```{r}
+map2(s3b, s3d, \(a, b) {
+  k <- str_subset(names(coef(a)), "^bo::")
+  tibble(term = k, b_3b = coef(a)[k], b_3d = coef(b)[k], change = b_3d - b_3b)
+}) |>
+  set_names(c("men", "women")) |>
+  bind_rows(.id = "sex") |>
+  knitr::kable(digits = 3)
+```
+
+Check: Spec 2 on the full sample vs only those with every control and AFQT. If the coefficients barely move, dropping the missing would not have mattered much either.
+
+```{r}
+cc <- drop_na(analysis, afqt, mom_educ, dad_educ, home_learning)
+
+s2_cc <- feols(ln_wage ~ i(bo, ref = "1") + fam_size + only_child | byear, cc,
+               split = ~sex, weights = ~wt, cluster = ~fam_id)
+reg_table(by_sex(full = s2, `complete case` = s2_cc))
+```
+
+## Extension: Booth-Kee birth order index
+
+Index = birth order / ((family size + 1) / 2), averages 1 within every family size. Same controls as Spec 2.
+
+```{r}
+ext <- feols(ln_wage ~ bk_index + fam_size + only_child | byear, analysis, split = ~sex, weights = ~wt, cluster = ~fam_id)
+reg_table(by_sex(ext = ext))
+```
