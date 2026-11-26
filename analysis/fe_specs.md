@@ -15,7 +15,9 @@ the analysis sample. Men and women pooled, birth order interacted with
 `female`, so `bo = k` is the effect for men and `bo = k x female` is the
 extra effect for women. Birth-year dummies absorbed alongside family FE.
 Unweighted, SEs clustered by family. Family size and family background
-are constant within a family and drop out.
+are constant within a family and drop out. So does mother’s age at
+birth: it equals the child’s birth year minus the mother’s birth year,
+and those are absorbed by the birth-year dummies and the family FE.
 
 `reg_table` prints coefficients with clustered SEs in parentheses. + p
 \< 0.1, \* p \< 0.05, \*\* p \< 0.01, \*\*\* p \< 0.001.

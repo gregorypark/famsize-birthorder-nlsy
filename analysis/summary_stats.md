@@ -115,7 +115,7 @@ analysis |>
          hispanic = as.integer(race == "hispanic")) |>
   select(sex, wt, ln_wage, wage, n_wage_years, fam_size, birth_order, only_child,
          afqt, educ, black, hispanic, birth_year,
-         mom_educ, dad_educ, parent_profmgr, home_learning) |>
+         mom_educ, dad_educ, parent_profmgr, home_learning, mom_age_birth) |>
   pivot_longer(-c(sex, wt)) |>
   filter(!is.na(value)) |>
   summarise(mean = weighted.mean(value, wt),
@@ -143,6 +143,7 @@ analysis |>
 | dad_educ       |      11.71 |    11.87 |     3.48 |   3.65 |    3194 |  3238 |
 | parent_profmgr |       0.27 |     0.29 |     0.44 |   0.45 |    3727 |  3768 |
 | home_learning  |       2.26 |     2.24 |     0.91 |   0.91 |    3702 |  3734 |
+| mom_age_birth  |      26.13 |    26.47 |     6.19 |   6.21 |    3499 |  3428 |
 
 ## Birth order and family size
 

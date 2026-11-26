@@ -147,6 +147,57 @@ df <- df |>
          home_learning = magazines_age14 + newspapers_age14 + libcard_age14)
 ```
 
+## Mother’s age at birth
+
+From the 1987 survey. Mother’s birth year is asked first (66 = never
+knew parent, set to `NA`); if R didn’t know it, mother’s age was asked
+instead, and birth year is 1987 minus age (can be off by a year).
+
+``` r
+df <- df |>
+  mutate(mom_byear = case_when(mom_byear_1987 == 66 ~ NA,
+                               !is.na(mom_byear_1987) ~ 1900 + mom_byear_1987,
+                               .default = 1987 - mom_age_1987))
+```
+
+Siblings report their mother’s birth year separately, and they often
+disagree: gaps between siblings’ reports, among families with at least
+two reports.
+
+``` r
+df |>
+  filter(!is.na(mom_byear)) |>
+  summarise(n = n(), gap = max(mom_byear) - min(mom_byear), .by = fam_id) |>
+  filter(n >= 2) |>
+  count(gap = pmin(gap, 5))
+```
+
+    ## # A tibble: 6 × 2
+    ##     gap     n
+    ##   <dbl> <int>
+    ## 1     0   545
+    ## 2     1   434
+    ## 3     2   238
+    ## 4     3   142
+    ## 5     4   120
+    ## 6     5   267
+
+Siblings share a mother, so use the median of the siblings’ reports
+within each family. This cuts the noise and fills in siblings who didn’t
+know. Mother’s age at R’s birth outside 14-50 is set to `NA`.
+
+``` r
+df <- df |>
+  mutate(mom_byear = median(mom_byear, na.rm = T), .by = fam_id) |>
+  mutate(mom_age_birth = birth_year - mom_byear,
+         mom_age_birth = if_else(between(mom_age_birth, 14, 50), mom_age_birth, NA))
+
+summary(df$mom_age_birth)
+```
+
+    ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+    ##   14.00   21.00   25.00   26.05   30.00   49.00    1060
+
 ## Samples
 
 Sample sizes by sex at each restriction, to check how many women the
@@ -179,7 +230,7 @@ analysis <- df |>
   select(id, fam_id, wt, ln_wage, n_wage_years, fe,
          fam_size, fam_size_cat, birth_order, bo, only_child, bk_index,
          afqt, educ, female, race, birth_year, byear, birth_month,
-         mom_educ, dad_educ, parent_profmgr,
+         mom_educ, dad_educ, parent_profmgr, mom_age_birth,
          magazines_age14, newspapers_age14, libcard_age14, home_learning)
 ```
 

@@ -6,7 +6,7 @@ output: github_document
 ```{r, message=F}
 library(tidyverse)
 
-df <- read_csv("../birthorder_wages/birthorder_wages.csv", show_col_types = F)
+df <- read_csv("../birthorder_wages/birthorder_wages_v2.csv", show_col_types = F)
 ```
 
 Rename variables, labels mostly from codebook .sps file.
@@ -15,6 +15,7 @@ Rename variables, labels mostly from codebook .sps file.
 - `sib*`: 1993 sibling roster (`_older`: 1 = older, 2 = younger, 3 = twin; `_agegap` in years)
 - `wage_cps_*`: hourly pay, current/most recent job; `wage_*`: hourly pay, job #1
 - `educ_*`: highest grade completed (revised)
+- `mom_byear_1987`: mother's year of birth (2 digits, 66 = never knew parent); `mom_age_1987`: mother's age, asked only if R didn't know her birth year
 
 ```{r}
 df <- df |> rename(
@@ -97,6 +98,8 @@ df <- df |> rename(
   wage_1986 = R2172410,
   weight_1986 = R2257300,
   educ_1986 = R2258001,
+  mom_byear_1987 = R2303500,
+  mom_age_1987 = R2303600,
   wage_cps_1987 = R2318210,
   wage_1987 = R2377210,
   weight_1987 = R2444500,

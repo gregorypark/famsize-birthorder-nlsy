@@ -74,7 +74,7 @@ analysis |>
          hispanic = as.integer(race == "hispanic")) |>
   select(sex, wt, ln_wage, wage, n_wage_years, fam_size, birth_order, only_child,
          afqt, educ, black, hispanic, birth_year,
-         mom_educ, dad_educ, parent_profmgr, home_learning) |>
+         mom_educ, dad_educ, parent_profmgr, home_learning, mom_age_birth) |>
   pivot_longer(-c(sex, wt)) |>
   filter(!is.na(value)) |>
   summarise(mean = weighted.mean(value, wt),
